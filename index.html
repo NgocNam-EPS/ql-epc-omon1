@@ -1588,7 +1588,7 @@ function attachBlock(hint){
     (S.assets&&ed?'<div class="att-drop" id="attDrop">Kéo thả file vào đây'+(hint?' · '+esc(hint):"")+'</div>':'')+
     (window.FBMODE&&!S.assets&&ed?'<div class="att-link"><input id="lkUrl" type="url" placeholder="Dán link Google Drive / OneDrive của biên bản, ảnh…" aria-label="Link tài liệu"><input id="lkName" placeholder="Tên tài liệu" aria-label="Tên tài liệu"><button type="button" class="btn sm" id="lkAdd">+ Gắn link</button></div>':'')+
     '<ul class="att-list" id="attList"></ul>'+
-    '<p class="note" style="margin:4px 0 0">'+(S.assets&&ed?'Nhận PDF, ảnh (JPG/PNG), video MP4, CSV/TXT; tối đa 20 MB mỗi file. File Word, Excel, CAD: lưu ra PDF rồi tải lên.':ed?'Tải file lên cần quyền Editor trên ứng dụng (chủ ứng dụng cấp).':'Bạn chỉ xem được file của mục này.')+'</p></div>';
+    '<p class="note" style="margin:4px 0 0">'+(S.assets&&ed?'Nhận PDF, ảnh (JPG/PNG), video MP4, CSV/TXT; tối đa 20 MB mỗi file. File Word, Excel, CAD: lưu ra PDF rồi tải lên.':ed?(window.FBMODE?'Cách gắn: tải file (PDF, ảnh…) lên Google Drive/OneDrive → Chia sẻ: “Bất kỳ ai có đường liên kết” được xem → sao chép link, dán vào ô trên, đặt tên rồi bấm + Gắn link.':'Tải file lên cần quyền Editor trên ứng dụng (chủ ứng dụng cấp).'):'Bạn chỉ xem được file của mục này.')+'</p></div>';
 }
 function wireAttach(col,rec,isNew){
   ATT={col:col,id:rec.id,files:(rec.files||[]).slice(),isNew:isNew,added:[],saved:false,ed:S.curEd||S.curAtt};
