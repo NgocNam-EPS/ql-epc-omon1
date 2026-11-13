@@ -1492,6 +1492,7 @@ function reqRowHtml(i){
 }
 function openMeeting(id){
   S.curEd=canEd("meetings",id?meetById(id):null);
+  S.curAtt=!S.curEd&&!!id&&!!S.unit&&S.unit.role==="unit"&&!!S.canWrite;
   var m=id?meetById(id):null,x=m||{date:S.ref,type:"Giao ban tuần",title:"",place:"Công trường NMNĐ Ô Môn I"};
   var its=m?S.acts2.filter(function(a){return a.meetingId===m.id;}).sort(function(a,b){return (a.code||"").localeCompare(b.code||"");}):[];
   openModal(m?"Cuộc họp với CĐT/LLM":"Ghi cuộc họp với CĐT/LLM",
@@ -1581,15 +1582,16 @@ function fileUrl(f){return (f&&f.url)||blobUrl(f&&f.id);}
 function fileKind(t){return t==="link"?"lnk":(t||"").indexOf("image/")===0?"img":t==="application/pdf"?"pdf":(t||"").indexOf("video/")===0?"vid":"txt";}
 var ATT=null;
 function attachBlock(hint){
+  var ed=S.curEd||S.curAtt;
   return '<div class="full att"><div class="att-head"><span>Tài liệu đính kèm <small id="attCount"></small></span>'+
-    (S.assets&&S.curEd?'<label class="btn sm" for="attIn">+ Tải file lên</label><input id="attIn" type="file" multiple accept="'+ACCEPT+'" class="vh">':'')+'</div>'+
-    (S.assets&&S.curEd?'<div class="att-drop" id="attDrop">Kéo thả file vào đây'+(hint?' · '+esc(hint):"")+'</div>':'')+
-    (window.FBMODE&&!S.assets&&S.curEd?'<div class="att-link"><input id="lkUrl" type="url" placeholder="Dán link Google Drive / OneDrive của biên bản, ảnh…" aria-label="Link tài liệu"><input id="lkName" placeholder="Tên tài liệu" aria-label="Tên tài liệu"><button type="button" class="btn sm" id="lkAdd">+ Gắn link</button></div>':'')+
+    (S.assets&&ed?'<label class="btn sm" for="attIn">+ Tải file lên</label><input id="attIn" type="file" multiple accept="'+ACCEPT+'" class="vh">':'')+'</div>'+
+    (S.assets&&ed?'<div class="att-drop" id="attDrop">Kéo thả file vào đây'+(hint?' · '+esc(hint):"")+'</div>':'')+
+    (window.FBMODE&&!S.assets&&ed?'<div class="att-link"><input id="lkUrl" type="url" placeholder="Dán link Google Drive / OneDrive của biên bản, ảnh…" aria-label="Link tài liệu"><input id="lkName" placeholder="Tên tài liệu" aria-label="Tên tài liệu"><button type="button" class="btn sm" id="lkAdd">+ Gắn link</button></div>':'')+
     '<ul class="att-list" id="attList"></ul>'+
-    '<p class="note" style="margin:4px 0 0">'+(S.assets&&S.curEd?'Nhận PDF, ảnh (JPG/PNG), video MP4, CSV/TXT; tối đa 20 MB mỗi file. File Word, Excel, CAD: lưu ra PDF rồi tải lên.':S.curEd?'Tải file lên cần quyền Editor trên ứng dụng (chủ ứng dụng cấp).':'Bạn chỉ xem được file của mục này.')+'</p></div>';
+    '<p class="note" style="margin:4px 0 0">'+(S.assets&&ed?'Nhận PDF, ảnh (JPG/PNG), video MP4, CSV/TXT; tối đa 20 MB mỗi file. File Word, Excel, CAD: lưu ra PDF rồi tải lên.':ed?'Tải file lên cần quyền Editor trên ứng dụng (chủ ứng dụng cấp).':'Bạn chỉ xem được file của mục này.')+'</p></div>';
 }
 function wireAttach(col,rec,isNew){
-  ATT={col:col,id:rec.id,files:(rec.files||[]).slice(),isNew:isNew,added:[],saved:false,ed:S.curEd};
+  ATT={col:col,id:rec.id,files:(rec.files||[]).slice(),isNew:isNew,added:[],saved:false,ed:S.curEd||S.curAtt};
   renderAtt();
   var inp=document.getElementById("attIn");
   if(inp)inp.addEventListener("change",function(){uploadFiles(inp.files);inp.value="";});
@@ -1612,7 +1614,7 @@ function renderAtt(uploading){
     var k=fileKind(f.type),u=fileUrl(f);
     var thumb=k==="img"?'<button type="button" class="att-th" data-view="'+i+'"><img src="'+u+'" alt="" loading="lazy"></button>':'<span class="att-ic '+k+'">'+(k==="pdf"?"PDF":k==="vid"?"VIDEO":k==="lnk"?"LINK":"TXT")+'</span>';
     return '<li>'+thumb+'<div class="att-meta"><a href="'+u+'" data-view="'+i+'">'+esc(f.name)+'</a><span class="note">'+(f.type==="link"?"Link ngoài":fmtSize(f.size||0))+(f.at?' · '+new Date(f.at).toLocaleDateString("vi-VN"):"")+'</span></div>'+
-      '<div class="att-btns"><button type="button" class="btn sm" data-view="'+i+'">Xem</button>'+((S.assets||(window.FBMODE&&f.type==="link"))&&ATT.ed?'<button type="button" class="btn sm danger" data-del="'+i+'">Xoá</button>':"")+'</div></li>';
+      '<div class="att-btns"><button type="button" class="btn sm" data-view="'+i+'">Xem</button>'+((S.assets||(window.FBMODE&&f.type==="link"))&&ATT.ed&&(S.curEd||(f.by&&f.by===S.me))?'<button type="button" class="btn sm danger" data-del="'+i+'">Xoá</button>':"")+'</div></li>';
   }).join("")+(uploading?uploading.map(function(n){return '<li class="up"><span class="att-ic">…</span><div class="att-meta"><span>'+esc(n)+'</span><span class="note">Đang tải lên…</span></div></li>';}).join(""):"")+
   (!ATT.files.length&&!(uploading&&uploading.length)?'<li class="none note">Chưa có file nào.</li>':"");
   ul.querySelectorAll("[data-view]").forEach(function(a){a.addEventListener("click",function(e){e.preventDefault();openDoc(ATT.files[+a.dataset.view]);});});
@@ -1662,7 +1664,7 @@ function removeFile(i){
 function attFinish(){
   // đóng hộp thoại của mục mới mà không lưu: xoá các file vừa tải để không bị mồ côi
   if(ATT&&ATT.isNew&&!ATT.saved&&S.assets){ATT.added.forEach(function(id){S.assets.delete(id).catch(function(){});});}
-  ATT=null;
+  ATT=null;S.curAtt=false;
 }
 /* trình xem tài liệu trong ứng dụng */
 var PDFJS_V="3.11.174",pdfjsP=null,DV={f:null,zoom:1,pdf:null,token:0};
@@ -2129,13 +2131,14 @@ function canEd(col,o){
   if(col==="logs")return o.unit===S.unit.key;
   if(col==="issues")return mine(o.owner)||o.unit===S.unit.key;
   if(col==="meetings")return false;
-  return mine(o.owner); // milestones, activities, actions
+  if(col==="actions")return true; // mọi đơn vị cập nhật tiến độ xử lý yêu cầu
+  return mine(o.owner); // milestones, activities
 }
 function lockForm(form){
   if(S.curEd)return;
-  form.querySelectorAll("input,select,textarea").forEach(function(el){if(el.id!=="attIn")el.disabled=true;});
+  form.querySelectorAll("input,select,textarea").forEach(function(el){if(el.id!=="attIn"&&!(S.curAtt&&(el.id==="lkUrl"||el.id==="lkName")))el.disabled=true;});
   var n=document.createElement("p");n.className="full lock-note";
-  n.textContent=!S.unit?"Đăng nhập để cập nhật.":S.unit.role==="leader"?"Tài khoản Lãnh đạo chỉ xem.":"Mục này do đơn vị khác phụ trách: bạn chỉ xem được.";
+  n.textContent=S.curAtt?"Bạn gắn được biên bản / tài liệu cho cuộc họp này (mục Tài liệu đính kèm). Nội dung cuộc họp do Admin cập nhật.":!S.unit?"Đăng nhập để cập nhật.":S.unit.role==="leader"?"Tài khoản Lãnh đạo chỉ xem.":"Mục này do đơn vị khác phụ trách: bạn chỉ xem được.";
   form.insertBefore(n,form.firstChild);
 }
 function updLine(o){return o&&o.updated?'<p class="note full" style="margin:0">Cập nhật lần cuối: '+new Date(o.updated).toLocaleString("vi-VN")+(o.updBy?' · bởi '+esc(unitName(o.updBy)):"")+'</p>':"";}

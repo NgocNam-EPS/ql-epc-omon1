@@ -26,16 +26,17 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['actStart','actFinish','pct','note','files','updated','updBy','dur']));
     }
-    // Yêu cầu từ cuộc họp CĐT/LLM
+    // Yêu cầu từ cuộc họp CĐT/LLM: mọi đơn vị cập nhật tiến độ xử lý, kết quả, file
     match /actions/{id} {
       allow read: if member();
       allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['person','status','doneDate','result','files','updated','updBy']));
+      allow update: if isAdmin() || (isUnit() && onlyChanged(['person','status','doneDate','result','files','updated','updBy']));
     }
-    // Cuộc họp: chỉ Admin ghi
+    // Cuộc họp: Admin ghi; đơn vị chỉ gắn thêm biên bản / tài liệu
     match /meetings/{id} {
       allow read: if member();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isUnit() && onlyChanged(['files','updated','updBy']));
     }
     // Nhật ký giám sát: đơn vị ghi và sửa nhật ký của mình
     match /logs/{id} {
