@@ -45,6 +45,17 @@ service cloud.firestore {
       allow update: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey() && request.resource.data.get('unit', '') == ukey());
       allow delete: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey());
     }
+    // File tải lên (lưu từng mảnh trong Firestore)
+    match /blobs/{fid} {
+      allow read: if member();
+      allow create: if (isAdmin() || isUnit()) && request.resource.data.by == uname() && request.resource.data.size <= 10485760;
+      allow delete: if isAdmin() || (isUnit() && resource.data.by == uname());
+      match /c/{n} {
+        allow read: if member();
+        allow create: if (isAdmin() || isUnit()) && get(/databases/$(database)/documents/blobs/$(fid)).data.by == uname();
+        allow delete: if isAdmin() || (isUnit() && get(/databases/$(database)/documents/blobs/$(fid)).data.by == uname());
+      }
+    }
     // Tồn tại / NCR
     match /issues/{id} {
       allow read: if member();

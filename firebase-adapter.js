@@ -46,7 +46,50 @@ try {
     delete: async id => { try { await SM.deleteObject(SM.ref(storage, id)); return { deleted: true }; }
       catch (e) { if (e.code === "storage/object-not-found") return { deleted: false }; throw SE(e); } },
     list: async () => ({ assets: [], usage: {} })
-  } : null;
+  } : fsAssets();
+
+  /* Lưu file ngay trong Firestore (gói miễn phí): chia file thành các mảnh ≤ 700 KB */
+  function fsAssets() {
+    const CH = 700 * 1024, MAX = 10 * 1048576;
+    const who = () => { const u = auth.currentUser; return u && u.email ? u.email.split("@")[0] : ""; };
+    const cache = window.FBBLOBC = {};
+    window.FBBLOB = async (id, type) => {
+      if (cache[id]) return cache[id];
+      try {
+        const m = await F.getDoc(F.doc(fs, "blobs", id));
+        if (!m.exists()) throw { code: "not_found" };
+        const md = m.data(), parts = [];
+        for (let i = 0; i < md.n; i++) {
+          const c = await F.getDoc(F.doc(fs, "blobs", id, "c", String(i)));
+          parts.push(c.data().d.toUint8Array());
+        }
+        return cache[id] = URL.createObjectURL(new Blob(parts, { type: md.type || type || "application/octet-stream" }));
+      } catch (e) { throw e && e.code === "not_found" ? e : E(e); }
+    };
+    return {
+      upload: async (blob, o) => {
+        if (blob.size > MAX) throw { code: "too_large" };
+        const buf = new Uint8Array(await blob.arrayBuffer()), n = Math.max(1, Math.ceil(buf.length / CH));
+        const id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), type = (o && o.type) || blob.type || "application/octet-stream";
+        try {
+          await F.setDoc(F.doc(fs, "blobs", id), { name: blob.name || "file", type, size: buf.length, n, by: who(), at: Date.now() });
+          for (let i = 0; i < n; i++)
+            await F.setDoc(F.doc(fs, "blobs", id, "c", String(i)), { d: F.Bytes.fromUint8Array(buf.subarray(i * CH, (i + 1) * CH)) });
+        } catch (e) { const x = E(e); throw { code: x.code === "permission_denied" ? "not_granted" : x.code === "resource_exhausted" ? "quota_or_state" : x.code, message: x.message }; }
+        cache[id] = URL.createObjectURL(blob);
+        return { id, sizeBytes: buf.length, contentType: type };
+      },
+      delete: async id => {
+        try {
+          const m = await F.getDoc(F.doc(fs, "blobs", id));
+          if (!m.exists()) return { deleted: false };
+          for (let i = 0; i < (m.data().n || 0); i++) await F.deleteDoc(F.doc(fs, "blobs", id, "c", String(i)));
+          await F.deleteDoc(F.doc(fs, "blobs", id)); return { deleted: true };
+        } catch (e) { const x = E(e); throw { code: x.code === "permission_denied" ? "not_uploader" : x.code }; }
+      },
+      list: async () => ({ assets: [], usage: {} })
+    };
+  }
 
   const downloadsApi = { save: async ({ filename, data }) => {
     const blob = data instanceof Blob ? data : new Blob([data]);
