@@ -735,7 +735,15 @@ var refEl=document.getElementById("refDate");refEl.value=S.ref;
 refEl.addEventListener("change",function(){S.ref=refEl.value||todayISO();render();});
 
 /* ---------- render ---------- */
+function ownerSel(id,first,arr){
+  var el=document.getElementById(id);if(!el)return;var cur=el.value,has={};
+  arr.forEach(function(o){if(o.owner)has[o.owner]=1;});if(cur)has[cur]=1;
+  var list=OWNERS.filter(function(x){return has[x];}).concat(Object.keys(has).filter(function(x){return OWNERS.indexOf(x)<0;}));
+  var key=list.join("|");if(el.dataset.k===key)return;el.dataset.k=key;
+  fillSel(el,first,list);el.value=cur;
+}
 function render(){
+  ownerSel("fOwner","Mọi đơn vị",S.ms);ownerSel("aOwner","Mọi đơn vị thực hiện",S.acts);ownerSel("rOwner","Mọi đơn vị thực hiện",S.acts2);
   renderOverview();renderSchedule();renderMs();renderMeet();renderLogs();renderIssues();
   var rq=S.acts2.filter(function(a){return ist(a).k==="over";}).length;
   var cm=document.getElementById("cntMeet");cm.hidden=!rq;cm.textContent=rq;
