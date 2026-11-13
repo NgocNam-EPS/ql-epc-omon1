@@ -1,67 +1,27 @@
 rules_version = '2';
 // Quy tắc phân quyền Firestore – ứng dụng QL EPC Ô Môn I
-// Quyền gắn theo email đăng nhập: <tên đăng nhập>@<emailDomain>
+// Admin và 5 đơn vị: xem, thêm, sửa, xoá mọi dữ liệu. Lãnh đạo: chỉ xem.
 service cloud.firestore {
   match /databases/{database}/documents {
     function authed() { return request.auth != null && request.auth.token.email is string; }
     function uname()  { return request.auth.token.email.split('@')[0]; }
     function role()   { return {'admin':'admin','pkhvt':'unit','pxscc':'unit','pxscd':'unit','pxgcph':'unit','pkd':'unit','lanhdao':'leader'}.get(uname(), 'none'); }
-    function ukey()   { return {'admin':'admin','pkhvt':'khvt','pxscc':'scc','pxscd':'scd','pxgcph':'gcph','pkd':'kd','lanhdao':'ld'}.get(uname(), ''); }
-    function owners() { return {'admin':['P.KT-AT','EPS'],'pkhvt':['P.KH-VT'],'pxscc':['PXSCC PM'],'pxscd':['PXSCĐ PM'],'pxgcph':['PX GC-PH'],'pkd':['P.KD']}.get(uname(), []); }
     function member() { return authed() && role() != 'none'; }
-    function isAdmin(){ return authed() && role() == 'admin'; }
-    function isUnit() { return authed() && role() == 'unit'; }
-    function ownsIt() { return resource.data.get('owner', '') in owners(); }
-    function onlyChanged(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function editor() { return authed() && (role() == 'admin' || role() == 'unit'); }
 
-    // Mốc chuẩn bị: đơn vị chỉ cập nhật tình trạng mốc của mình
-    match /milestones/{id} {
-      allow read: if member();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['done','doneDate','blocker','note','files','updated','updBy']));
+    // Mốc chuẩn bị, tiến độ L4, cuộc họp, yêu cầu, nhật ký, tồn tại/NCR
+    match /{col}/{id} {
+      allow read: if member() && col in ['milestones','activities','meetings','actions','logs','issues','blobs'];
+      allow write: if editor() && col in ['milestones','activities','meetings','actions','logs','issues'];
     }
-    // Công việc L4: đơn vị chỉ cập nhật thực tế của công việc mình thực hiện
-    match /activities/{id} {
-      allow read: if member();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['actStart','actFinish','pct','note','files','updated','updBy','dur']));
-    }
-    // Yêu cầu từ cuộc họp CĐT/LLM: mọi đơn vị cập nhật tiến độ xử lý, kết quả, file
-    match /actions/{id} {
-      allow read: if member();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isUnit() && onlyChanged(['person','status','doneDate','result','files','updated','updBy']));
-    }
-    // Cuộc họp: Admin ghi; đơn vị chỉ gắn thêm biên bản / tài liệu
-    match /meetings/{id} {
-      allow read: if member();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isUnit() && onlyChanged(['files','updated','updBy']));
-    }
-    // Nhật ký giám sát: đơn vị ghi và sửa nhật ký của mình
-    match /logs/{id} {
-      allow read: if member();
-      allow create: if isAdmin() || (isUnit() && request.resource.data.get('unit', '') == ukey());
-      allow update: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey() && request.resource.data.get('unit', '') == ukey());
-      allow delete: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey());
-    }
-    // File tải lên (lưu từng mảnh trong Firestore)
+    // File tải lên (lưu từng mảnh trong Firestore, tối đa 10 MB/file)
     match /blobs/{fid} {
-      allow read: if member();
-      allow create: if (isAdmin() || isUnit()) && request.resource.data.by == uname() && request.resource.data.size <= 10485760;
-      allow delete: if isAdmin() || (isUnit() && resource.data.by == uname());
+      allow create: if editor() && request.resource.data.by == uname() && request.resource.data.size <= 10485760;
+      allow delete: if editor();
       match /c/{n} {
         allow read: if member();
-        allow create: if (isAdmin() || isUnit()) && get(/databases/$(database)/documents/blobs/$(fid)).data.by == uname();
-        allow delete: if isAdmin() || (isUnit() && get(/databases/$(database)/documents/blobs/$(fid)).data.by == uname());
+        allow create, delete: if editor();
       }
-    }
-    // Tồn tại / NCR
-    match /issues/{id} {
-      allow read: if member();
-      allow create: if isAdmin() || (isUnit() && request.resource.data.get('unit', '') == ukey());
-      allow update: if isAdmin() || (isUnit() && (ownsIt() || resource.data.get('unit', '') == ukey()));
-      allow delete: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey());
     }
   }
 }
