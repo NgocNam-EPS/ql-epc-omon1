@@ -2276,7 +2276,7 @@ function myWorkPanel(){
   var rq=S.acts2.filter(function(a){return mine(a.owner)&&a.status!=="Hoàn thành";}),rqO=rq.filter(function(a){return ist(a).k==="over";});
   var is=S.issues.filter(function(i){return mine(i.owner)&&i.status!=="Đã đóng";});
   el.hidden=false;
-  el.innerHTML='<div class="mw-t"><b>Việc của '+esc(S.unit.short)+'</b><span class="note">Bạn cập nhật được các mục do đơn vị mình phụ trách</span></div><div class="mw-items">'+
+  el.innerHTML='<div class="mw-t"><b>Việc của '+esc(S.unit.short)+'</b><span class="note">Các mục do đơn vị mình phụ trách – bấm vào ô để xem và cập nhật</span></div><div class="mw-items">'+
     '<button type="button" class="mw" data-mw="ms"><span class="n">'+ms.length+'</span> mốc chuẩn bị chưa xong'+(msO.length?' <span class="pill over">'+msO.length+' quá hạn</span>':"")+'</button>'+
     '<button type="button" class="mw" data-mw="l4"><span class="n">'+ac.length+'</span> công việc L4 đang/sắp làm'+(acO.length?' <span class="pill over">'+acO.length+' chậm</span>':"")+'</button>'+
     '<button type="button" class="mw" data-mw="rq"><span class="n">'+rq.length+'</span> yêu cầu CĐT/LLM'+(rqO.length?' <span class="pill over">'+rqO.length+' quá hạn</span>':"")+'</button>'+
