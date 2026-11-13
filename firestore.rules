@@ -1,0 +1,55 @@
+rules_version = '2';
+// Quy tắc phân quyền Firestore – ứng dụng QL EPC Ô Môn I
+// Quyền gắn theo email đăng nhập: <tên đăng nhập>@<emailDomain>
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function authed() { return request.auth != null && request.auth.token.email is string; }
+    function uname()  { return request.auth.token.email.split('@')[0]; }
+    function role()   { return {'admin':'admin','pkhvt':'unit','pxscc':'unit','pxscd':'unit','pxgcph':'unit','pkd':'unit','lanhdao':'leader'}.get(uname(), 'none'); }
+    function ukey()   { return {'admin':'admin','pkhvt':'khvt','pxscc':'scc','pxscd':'scd','pxgcph':'gcph','pkd':'kd','lanhdao':'ld'}.get(uname(), ''); }
+    function owners() { return {'admin':['P.KT-AT','EPS'],'pkhvt':['P.KH-VT'],'pxscc':['PXSCC PM'],'pxscd':['PXSCĐ PM'],'pxgcph':['PX GC-PH'],'pkd':['P.KD']}.get(uname(), []); }
+    function member() { return authed() && role() != 'none'; }
+    function isAdmin(){ return authed() && role() == 'admin'; }
+    function isUnit() { return authed() && role() == 'unit'; }
+    function ownsIt() { return resource.data.get('owner', '') in owners(); }
+    function onlyChanged(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // Mốc chuẩn bị: đơn vị chỉ cập nhật tình trạng mốc của mình
+    match /milestones/{id} {
+      allow read: if member();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['done','doneDate','blocker','note','files','updated','updBy']));
+    }
+    // Công việc L4: đơn vị chỉ cập nhật thực tế của công việc mình thực hiện
+    match /activities/{id} {
+      allow read: if member();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['actStart','actFinish','pct','note','files','updated','updBy','dur']));
+    }
+    // Yêu cầu từ cuộc họp CĐT/LLM
+    match /actions/{id} {
+      allow read: if member();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isUnit() && ownsIt() && onlyChanged(['person','status','doneDate','result','files','updated','updBy']));
+    }
+    // Cuộc họp: chỉ Admin ghi
+    match /meetings/{id} {
+      allow read: if member();
+      allow write: if isAdmin();
+    }
+    // Nhật ký giám sát: đơn vị ghi và sửa nhật ký của mình
+    match /logs/{id} {
+      allow read: if member();
+      allow create: if isAdmin() || (isUnit() && request.resource.data.get('unit', '') == ukey());
+      allow update: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey() && request.resource.data.get('unit', '') == ukey());
+      allow delete: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey());
+    }
+    // Tồn tại / NCR
+    match /issues/{id} {
+      allow read: if member();
+      allow create: if isAdmin() || (isUnit() && request.resource.data.get('unit', '') == ukey());
+      allow update: if isAdmin() || (isUnit() && (ownsIt() || resource.data.get('unit', '') == ukey()));
+      allow delete: if isAdmin() || (isUnit() && resource.data.get('unit', '') == ukey());
+    }
+  }
+}
